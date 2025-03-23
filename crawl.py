@@ -1,17 +1,41 @@
-# Thêm hàm input_with_timeout vào đầu file, ngay sau các import
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import pandas as pd
-import easyocr # Thư viện nhận diện chữ từ ảnh
+import easyocr
 import time
 import random
-import undetected_chromedriver as uc  # Thêm undetected_chromedriver để tránh chống bot
+import undetected_chromedriver as uc
 import traceback
-import threading  # Thêm thư viện threading để hỗ trợ input với timeout
-import pyshorteners # Thêm thư viện pyshorteners để rút gọn URL
-# Xử lý cái lỗi không liên quan đến quá trình cào dữ liệu
+import threading
+import pyshorteners
+from datetime import datetime
+import re
 
-
+def get_item_shop_cat(url):
+    itemid, shopid, catid = None, None, None
+    if url:
+        try:
+            # Tìm itemid
+            item_match = re.search(r'i\.(\d+)\.', url)
+            if item_match:
+                itemid = item_match.group(1)
+            elif re.search(r'itemid=(\d+)', url):
+                itemid = re.search(r'itemid=(\d+)', url).group(1)
+            
+            # Tìm shopid
+            shop_match = re.search(r'\.(\d+)\.', url)
+            if shop_match and shop_match.group(1) != itemid:
+                shopid = shop_match.group(1)
+            elif re.search(r'shopid=(\d+)', url):
+                shopid = re.search(r'shopid=(\d+)', url).group(1)
+            
+            # Tìm catid từ URL
+            if re.search(r'catid=(\d+)', url):
+                catid = re.search(r'catid=(\d+)', url).group(1)
+        except Exception as e:
+            print(f"Lỗi khi phân tích URL: {e}, URL: {url}")
+    return itemid, shopid, catid
+ 
 def input_with_timeout(prompt, timeout=10):
     """
     Hàm đọc input với timeout, trả về None nếu hết thời gian chờ
@@ -43,150 +67,90 @@ def input_with_timeout(prompt, timeout=10):
     return result[0]
 
 def shorten_url(url):
-    # Hàm  để rút gọn URL
+    # Hàm để rút gọn URL
     s = pyshorteners.Shortener()
     return s.tinyurl.short(url)
 
-
 def convert_image_url(url):
     # Hàm xử lý riêng cho các trường hợp cụ thể trong "chỉ báo khuyến mãi"
-    dict = {"https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/a0842aa9294375794fd2.png":"Mall", 
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/4bce1bc553abb9ce061d.png":"Xử lý bởi Shopee", 
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/f7b68952a53e41162ad3.png":"Xử lý bởi Shopee", 
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/ef5ae19bc5ed8a733a70.png":"Yêu thích", 
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/f7b342784ff25c9e4403.png":"Yêu thích+", 
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/06ac2f74334798aeb1e0.png":"Choice", 
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/29ae698914953718838e.png":"Premium"}
-    if(url in dict):
+    dict = {
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/a0842aa9294375794fd2.png": "Mall",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/4bce1bc553abb9ce061d.png": "Xử lý bởi Shopee",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/f7b68952a53e41162ad3.png": "Xử lý bởi Shopee",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/ef5ae19bc5ed8a733a70.png": "Yêu thích",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/f7b342784ff25c9e4403.png": "Yêu thích+",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/06ac2f74334798aeb1e0.png": "Choice",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/29ae698914953718838e.png": "Premium"
+    }
+    if url in dict:
         return dict[url]
     
-    # Trong TH lầ text không có trong dict ở trên
+    # Trong TH là text không có trong dict ở trên
     # Khởi tạo EasyOCR với tiếng Việt
     reader = easyocr.Reader(['vi'])
     results = reader.readtext(url)
-    text=""
+    text = ""
     for result in results:
         text = result[1]
     return text
 
 def crawl_shopee(search_term, start_page, num_pages):
-    """
-    Hàm chính để cào dữ liệu từ Shopee
-    
-    Args:
-        search_term: Từ khóa tìm kiếm
-        start_page: Trang bắt đầu cào (0 là trang đầu tiên)
-        num_pages: Số trang cần cào
-    
-    Returns:
-        Danh sách các sản phẩm đã cào được
-    """
-    # Khởi tạo biến driver
     driver = None
     all_products = []
     
     try:
-        # Khởi tạo trình duyệt Chrome với undetected_chromedriver để tránh bị phát hiện bot
         print("Đang khởi tạo trình duyệt với undetected_chromedriver...")
-        
-        # Tạo Chrome Options để tối ưu hóa việc tránh phát hiện
         chrome_options = Options()
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Ẩn dấu hiệu automation
-        chrome_options.add_argument("--start-maximized")  # Mở toàn màn hình để dễ quan sát
-        chrome_options.add_argument("--disable-extensions")  # Tắt extensions
-        chrome_options.add_argument("--disable-notifications")  # Tắt thông báo
-        chrome_options.add_argument("--disable-popup-blocking")  # Tắt chặn popup
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_argument("--start-maximized")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-notifications")
+        chrome_options.add_argument("--disable-popup-blocking")
+        # Chọn User-Agent ngẫu nhiên
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")  # User-agent phổ biến
         
-        # Khởi tạo trình duyệt với undetected_chromedriver
         driver = uc.Chrome(options=chrome_options)
         
-        # Mở trang Shopee để xử lý đăng nhập/captcha nếu cần
         driver.get("https://shopee.vn")
         input("Vui lòng xử lý CAPTCHA hoặc đăng nhập nếu cần, sau đó nhấn Enter để tiếp tục: ")
         
-        # Bắt đầu cào dữ liệu
+        # Cào thông tin cơ bản về sản phẩm
         for page_idx in range(num_pages):
-            # Tính số trang thực tế từ index của vòng lặp và trang bắt đầu
             current_page = start_page + page_idx
-            
-            # Tạo URL trang tìm kiếm với từ khóa và số trang
             encoded_term = search_term.replace(" ", "%20")
             url = f"https://shopee.vn/search?keyword={encoded_term}&page={current_page}"
             
-            print(f"\n=== Đang xử lý trang {page_idx+1}/{num_pages} (Trang thực tế trên Shopee: {current_page}): {url} ===")
+            print(f"\n=== Đang xử lý trang {page_idx+1}/{num_pages} (Trang thực tế: {current_page}): {url} ===")
             driver.get(url)
-            
-            # Chờ đợi cho trang tải ban đầu
-            print("Đang đợi trang tải ban đầu...")
             time.sleep(5)
-            
-            # Bước 1: Cuộn trang để tải tất cả sản phẩm
-            print("\n--- Bước 1: Cuộn trang để tải tất cả sản phẩm ---")
             scroll_page(driver)
-            
-            # Bước 2: Cào dữ liệu sau khi đã cuộn trang
-            print("\n--- Bước 2: Cào dữ liệu sản phẩm ---")
-            page_products = crawl_products(driver)
+            # Truyền search_term vào hàm crawl_products để sử dụng làm danh mục sản phẩm
+            page_products = crawl_products(driver, search_term)
             all_products.extend(page_products)
             
-            # Hiển thị thống kê cho trang hiện tại
-            print(f"\n=== Tổng kết trang {page_idx+1}/{num_pages} (Trang Shopee: {current_page}) ===")
+            print(f"\n=== Tổng kết trang {page_idx+1}/{num_pages} ===")
             print(f"- Đã cào được {len(page_products)} sản phẩm từ trang này")
             print(f"- Tổng số sản phẩm đã cào: {len(all_products)}")
             
-            # Delay ngẫu nhiên giữa các trang để tránh bị chặn
             if page_idx < num_pages - 1:
-                delay = random.uniform(3, 5)
-                print(f"\nHoàn thành trang {page_idx+1}/{num_pages} (Trang Shopee: {current_page}). Đợi {delay:.1f} giây trước khi chuyển trang tiếp...")
+                delay = random.uniform(5, 10)  # Tăng từ 3-5 lên 5-10 giây
+                print(f"Đợi {delay:.1f} giây trước khi chuyển trang tiếp...")
                 time.sleep(delay)
-                
-                # Hỏi người dùng có muốn tiếp tục không, với timeout 10 giây
-                response = input_with_timeout("Nhấn Enter để tiếp tục sang trang tiếp, hoặc nhập 'q' để dừng (tự động tiếp tục sau 10 giây): ", 10)
+                response = input_with_timeout("Nhấn Enter để tiếp tục, hoặc 'q' để dừng: ", 10)
                 if response and response.lower() == 'q':
-                    print("Dừng theo yêu cầu người dùng")
                     break
         
-        # Lưu kết quả vào CSV
         if all_products:
             save_to_csv(all_products)
             
     except Exception as e:
         print(f"Lỗi: {e}")
-        # Hiển thị thêm thông tin về lỗi
         traceback.print_exc()
     finally:
-        # Cải thiện cách đóng trình duyệt để tránh lỗi
-        print("Đang đóng trình duyệt...")
-        
-    try:
         if driver:
-            # Đóng tất cả cửa sổ browser trước khi quit
-            original_window = driver.current_window_handle
-            for window_handle in driver.window_handles:
-                if window_handle != original_window:
-                    driver.switch_to.window(window_handle)
-                    driver.close()
-            
-            driver.switch_to.window(original_window)
-            
-            # Đóng session và browser
-            driver.close()
             driver.quit()
-            
-            # Thêm thời gian chờ ngắn để đảm bảo trình duyệt được đóng hoàn toàn
-            time.sleep(0.5)
-            
-            # Thiết lập biến driver về None để tránh bị gọi quit thêm lần nữa
-            temp = driver
-            driver = None
-            del temp
-            
             print("Đã đóng trình duyệt thành công.")
-    except Exception as e:
-        print(f"Lỗi khi đóng trình duyệt: {e}")
-        print("Lỗi này không ảnh hưởng đến dữ liệu đã thu thập.")
-        
+    
     return all_products
 
 def scroll_page(driver):
@@ -226,13 +190,23 @@ def scroll_page(driver):
     print("Đã cuộn lại lên đầu trang và sẵn sàng cào dữ liệu")
     time.sleep(10)  # Đợi một chút sau khi cuộn lên
 
-def crawl_products(driver):
+def crawl_products(driver, category):
     """
     Cào dữ liệu sản phẩm sau khi đã cuộn trang
+    
+    Args:
+        driver: WebDriver đang chạy
+        category: Danh mục sản phẩm (từ khóa tìm kiếm)
+        
+    Returns:
+        Danh sách các sản phẩm đã cào được
     """
     print("Bắt đầu cào dữ liệu sản phẩm...")
     products = []
     processed_names = set()  # Tránh trùng lặp sản phẩm
+    
+    # Lấy ngày giờ hiện tại để thêm vào sản phẩm
+    current_date = datetime.now().strftime("%d/%m/%Y")
     
     try:
         # Tìm container chính của sản phẩm 
@@ -250,7 +224,7 @@ def crawl_products(driver):
             # Tìm tên sản phẩm - cập nhật theo bộ chọn CSS chính xác và đầy đủ từ người dùng
             try:
                 # Bộ chọn chính xác và đầy đủ cho tên sản phẩm
-                name_element = item.find_element(By.CSS_SELECTOR, "div.line-clamp-2.break-words.min-w-0.min-h-[2.5rem].text-sm")
+                name_element = item.find_element(By.CSS_SELECTOR, "div.line-clamp-2.break-words.min-w-0.min-h-\\[2\\.5rem\\].text-sm")
                 name = name_element.text.strip()
             except:
                 # Thử các bộ chọn khác nếu bộ chọn chính không hoạt động
@@ -338,11 +312,10 @@ def crawl_products(driver):
             try:
                 link_element = item.find_element(By.CSS_SELECTOR, "a")
                 link = link_element.get_attribute("href")
-                link = shorten_url(link)  # Rút gọn URL
+                link = shorten_url(link)  # Rút gọn URL để hiển thị
             except:
                 link = "Không có đường dẫn"
             
-
             # Lấy thông tin giảm giá - thêm mới theo cấu trúc HTML
             try:
                 # Tìm thẻ div chứa thông tin giảm giá từ bộ chọn CSS chính xác mà người dùng cung cấp
@@ -541,30 +514,115 @@ def crawl_products(driver):
                 print(f"Lỗi khi xử lý thông tin địa chỉ: {str(e)}")
                 location = "Không có thông tin"
             
+
+            # Lấy thông tin item_id, shop_id, cat_id
+            try:
+                # Trước tiên, tìm chính xác thẻ "Tìm sản phẩm tương tự" dựa vào HTML bạn cung cấp
+                # Tìm theo CSS selector dành riêng cho phần tử này
+                similar_product_link = None
+                
+                # Tìm thẻ a có class chứa text-white và text-secondary và có nội dung "Tìm sản phẩm tương tự"
+                try:
+                    similar_element = item.find_element(By.CSS_SELECTOR, 
+                        "a.text-white.text-secondary, a[class*='text-white'][class*='text-secondary'], a[class*='bg-shopee-primary']")
+                    
+                    # Kiểm tra nếu đúng là phần tử "Tìm sản phẩm tương tự"
+                    if "Tìm sản phẩm tương tự" in similar_element.text:
+                        similar_product_link = similar_element.get_attribute("href")
+                        print(f"Tìm thấy link sản phẩm tương tự: {similar_product_link}")
+                except:
+                    # Thử cách khác nếu cách trên không thành công
+                    pass
+                    
+                if not similar_product_link:
+                    # Tìm theo XPath dựa vào text content chính xác
+                    try:
+                        similar_element = item.find_element(By.XPATH, ".//a[contains(text(), 'Tìm sản phẩm tương tự')]")
+                        similar_product_link = similar_element.get_attribute("href")
+                        print(f"Tìm thấy link sản phẩm tương tự qua text: {similar_product_link}")
+                    except:
+                        # Thử cách khác nếu cách trên không thành công
+                        pass
+                
+                if not similar_product_link:
+                    # Tìm tất cả thẻ a và kiểm tra href có chứa find_similar_products
+                    try:
+                        all_links = item.find_elements(By.TAG_NAME, "a")
+                        for link in all_links:
+                            href = link.get_attribute("href")
+                            if href and "find_similar_products" in href:
+                                similar_product_link = href
+                                print(f"Tìm thấy link sản phẩm tương tự qua href: {similar_product_link}")
+                                break
+                    except Exception as e:
+                        print(f"Lỗi khi tìm tất cả thẻ a: {e}")
+                
+                # Trích xuất ID từ link "Tìm sản phẩm tương tự" nếu có
+                if similar_product_link and "find_similar_products" in similar_product_link:
+                    # Trích xuất trực tiếp từ URL với regex
+                    try:
+                        if "catid=" in similar_product_link:
+                            cat_id = re.search(r'catid=(\d+)', similar_product_link).group(1)
+                        if "itemid=" in similar_product_link:
+                            item_id = re.search(r'itemid=(\d+)', similar_product_link).group(1)
+                        if "shopid=" in similar_product_link:
+                            shop_id = re.search(r'shopid=(\d+)', similar_product_link).group(1)
+                    except Exception as e:
+                        print(f"Lỗi khi trích xuất ID từ URL: {e}")
+                
+                # Nếu vẫn không tìm thấy, thử lấy từ URL chính của sản phẩm
+                if not (item_id and shop_id):
+                    try:
+                        # Lấy URL chính của sản phẩm (thẻ a đầu tiên)
+                        main_link = item.find_element(By.CSS_SELECTOR, "a.contents, a[class*='contents']")
+                        product_url = main_link.get_attribute("href")
+                        
+                        # Phân tích URL sản phẩm
+                        item_id_shop_id_pattern = re.search(r'i\.(\d+)\.(\d+)', product_url)
+                        if item_id_shop_id_pattern:
+                            item_id = item_id if item_id else item_id_shop_id_pattern.group(1)
+                            shop_id = shop_id if shop_id else item_id_shop_id_pattern.group(2)
+                            print(f"Phân tích URL sản phẩm: itemid={item_id}, shopid={shop_id}")
+                    except Exception as e:
+                        print(f"Lỗi khi phân tích URL sản phẩm: {e}")
+
+            except Exception as e:
+                print(f"Lỗi khi xử lý item_id, shop_id, cat_id: {str(e)}")
+                item_id, shop_id, cat_id = None, None, None
+
             # Hiển thị tiến độ
             if index % 5 == 0 or index == 1:  # Hiển thị cho sản phẩm đầu tiên và sau mỗi 5 sản phẩm
                 print(f"Đang xử lý sản phẩm {index}/{len(product_items)}")
 
             # Thêm vào danh sách kết quả
             product = {
+                "Ngày cào": current_date,
+                "Mã sản phẩm": item_id,
+                "Mã shop": shop_id,
+                "Mã danh mục": cat_id,
                 "Tên sản phẩm": name,
-                "Giá": price,
-                "Giảm giá": discount,
+                "Giá bán hiển thị trên feed": price,
+                "Giảm giá hiển thị trên feed": discount,
                 "Đã bán": sold,
                 "Nhãn": label,
                 "Ưu đãi": uu_dai,
                 "Chỉ báo khuyến mãi": promo_text,
                 "Đánh giá": rating,
-                "Địa chỉ": location,  # Thêm thông tin địa chỉ
-                "Link": link
+                "Địa chỉ": location,
+                "Danh mục sản phẩm": category,
+                "Link": link 
             }
-
+            
             products.append(product)
             processed_names.add(name)
             
             # Thêm độ trễ nhỏ để tránh quá tải
             if index % 10 == 0:
                 time.sleep(random.uniform(0.5, 1))
+                
+            # Hiển thị tiến độ cào dữ liệu
+            if index % 5 == 0 or index == len(product_items):
+                print(f"Đã cào {index}/{len(product_items)} sản phẩm ({(index/len(product_items)*100):.1f}%)")
                 
         except Exception as e:
             print(f"Lỗi khi xử lý sản phẩm {index}: {str(e)}")
@@ -573,15 +631,16 @@ def crawl_products(driver):
     print(f"Hoàn thành cào dữ liệu. Đã thu thập {len(products)} sản phẩm.")
     return products
 
-
-def save_to_csv(products):
+def save_to_csv(products, filename=None):
     """
     Lưu dữ liệu sản phẩm vào file CSV
     """
-    df = pd.DataFrame(products)
-    filename = f"shopee_products_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+    # Nếu không có tên file, tạo tên mặc định
+    if filename is None:
+        filename = f"shopee_products_{time.strftime('%Y%m%d_%H%M%S')}.csv"
     
     try:
+        df = pd.DataFrame(products)
         df.to_csv(filename, index=False, encoding="utf-8-sig")  # utf-8-sig để hỗ trợ tiếng Việt trên Excel
         print(f"\n=== Đã lưu {len(products)} sản phẩm vào file {filename} ===")
         
@@ -597,7 +656,7 @@ if __name__ == "__main__":
     print("Công cụ này sử dụng undetected_chromedriver để tránh phát hiện bot\n")
     
     # Thông số tìm kiếm
-    search_keyword = input("Nhập từ khóa tìm kiếm (ví dụ: mỹ phẩm): ") or "mỹ phẩm"
+    search_keyword = input("Nhập từ khóa tìm kiếm (Lưu ý từ khóa này sẽ là từ được lưu vào cột \"Danh mục sản phẩm\": ") or "Sữa rửa mặt"
     
     # Thêm tùy chọn trang bắt đầu
     try:
