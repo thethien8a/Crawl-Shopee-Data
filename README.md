@@ -9,6 +9,6 @@ Hướng dẫn sử dụng code:
 
 ## MỘT VÀI LƯU Ý QUAN TRỌNG:
 1. Đối với code chua_hoan_thien.py: là code mà tôi dùng để cào sub-page (tức cào sâu hơn, chi tiết hơn sản phẩm bằng việc click vào chi tiết từng sản phẩm để lấy thêm về thông tin shop, đánh giá, ...) Tuy nhiên tôi đã thử nhiều cácch như IP rotate, sử dùng nhiều user-agent,... hay là cách mở tab mới để lấy ttin shop rồi lại đóng, rồi lại mở rồi lại đóng,... hoặc click vào sản phẩm  rồi ấn nút mũi tên quay lại như người thường hay làm nhưng tất cả đều thât bại ! Với trình code còn gà mờ như tôi thì tôi sẽ không phát triển thêm cái ấy nữa. Và nếu có thể, bạn có thể lấy code tôi về và phát triển thêm ! Tất cả là ở bạn !
-2. Việc cào dữ liệu này vẫn HOÀN TOÀN CÓ THỂ BỊ KHÓA ACC TẠM THỜI. Vậy nên, tôi khuyên bạn chỉ nên cào 3-4 trang mỗi lần cào thôi ! Vậy nên, để an toàn, các bạn hãy tạo 1 nick ảo để cào !
+2. Việc cào dữ liệu này vẫn HOÀN TOÀN CÓ THỂ BỊ KHÓA ACC TẠM THỜI. Vậy nên, tôi khuyên bạn chỉ nên cào 3-4 trang mỗi lần cào thôi ! Tuy nhiên, tốt hơn hết, các bạn hãy tạo 1 nick ảo để cào !
    
 Cảm ơn các bạn đã quan tâm đến source code này !
