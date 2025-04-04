@@ -74,13 +74,13 @@ def shorten_url(url):
 def convert_image_url(url):
     # Hàm xử lý riêng cho các trường hợp cụ thể trong "chỉ báo khuyến mãi"
     dict = {
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/a0842aa9294375794fd2.png": "Mall",
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/4bce1bc553abb9ce061d.png": "Xử lý bởi Shopee",
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/f7b68952a53e41162ad3.png": "Xử lý bởi Shopee",
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/ef5ae19bc5ed8a733a70.png": "Yêu thích",
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/f7b342784ff25c9e4403.png": "Yêu thích+",
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/06ac2f74334798aeb1e0.png": "Choice",
-        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.48/pc/29ae698914953718838e.png": "Premium"
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.53/pc/a0842aa9294375794fd2.png": "Mall",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.53/pc/4bce1bc553abb9ce061d.png": "Xử lý bởi Shopee",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.53/pc/f7b68952a53e41162ad3.png": "Xử lý bởi Shopee",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.53/pc/ef5ae19bc5ed8a733a70.png": "Yêu thích",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.53/pc/f7b342784ff25c9e4403.png": "Yêu thích+",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.53/pc/06ac2f74334798aeb1e0.png": "Choice",
+        "https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-standard-v2/0.1.53/pc/29ae698914953718838e.png": "Premium"
     }
     if url in dict:
         return dict[url]
